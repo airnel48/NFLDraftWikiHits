@@ -9,11 +9,10 @@ Created on Sun Mar 10 10:23:21 2019
 #assistance from: http://savvastjortjoglou.com/nfl-draft.html#Web-Scraping
 
 %matplotlib inline
-
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
-
+import numpy as np
 from urllib.request import urlopen
 from bs4 import BeautifulSoup
 
@@ -34,8 +33,8 @@ table_rows = soup.select("#drafts tr")[2:]
 type(table_rows)
 type(table_rows[0])
 table_rows[0] # take a look at the first row
-player_list = [td.get_text() for td in row.find_all("th")]
-player_list.extend([td.get_text() for td in row.find_all("td")])
+#player_list = [td.get_text() for td in row.find_all("th")]
+#player_list.extend([td.get_text() for td in row.find_all("td")])
 def extract_player_data(table_rows):
     """
     Extract and return the the desired information from the td elements within the table rows.
@@ -94,49 +93,35 @@ data = extract_player_data(table_rows)
 
 # and then store it in a DataFrame
 df_2018 = pd.DataFrame(data, columns=headers)
-df_2018.head()
-
-####1 IMPORT NFL DRAFT DATA FROM KAGGLE
-
-
-import kaggle
-!kaggle datasets list --tags american football
-!kaggle datasets files ronaldjgrafjr/nfl-draft-outcomes
-!kaggle datasets download ronaldjgrafjr/nfl-draft-outcomes -f nfl_draft.csv
-
-
-##1a explore and clean dataset
-
-
-#limit observations to the most recent year
-
-import numpy as np
-import pandas as pd
-draft = pd.read_csv("nfl_draft.csv")
-draft.head()
-maxyear=draft.Year.max()
-recentdraft=draft.loc[draft['Year']==draft.Year.max()]
-recentdraft.head()
-
 #cut unnecessary columns
-
-recentdraft = recentdraft[['Player_Id','Year','Rnd','Pick','Tm','Player','Position Standard','Age','College/Univ']]
-recentdraft.describe()
-recentdraft.isna().sum()
-
-#note - missing age for 8 players
+df_2018.columns
+df_2018 = df_2018[['Rnd','Pick','Tm','Player','Pos','College/Univ']]
+#explore data
+df_2018.head()
+df_2018.isna().sum()
+df_2018.describe()
+#only 257 unique names and most common is 'Player'. Is there a data issue?
 #with 32 teams and 7 rounds we should have 224 total picks, but there are 256 in this dataset
-
-pd.set_option('display.max_rows', 50)
-pd.set_option('display.max_columns', 10)
-tabs=['Year','Rnd','Tm','Position Standard','Age']
+tabs=['Rnd','Pick','Tm','Pos']
 for column in tabs:
-    tab = pd.crosstab(index=recentdraft[column],  # Make a crosstab
+    tab = pd.crosstab(index=df_2018[column],  # Make a crosstab
                               columns="count")      # Name the count column
     print(tab)
-    
-#apparently there are 32 picks in the first two rounds but later rounds have 35 - 41 picks
-#note some positions, such as Punter, have only a single observation
+#apparently there are 32 picks in the first two rounds but later rounds have 36 - 44 picks
+#note some positions such as LS and Kicker only have 1 or 2 observations
+df_2018[df_2018.Player == 'Player']
+#rows 32, 65, 102, 140, 178, and 223 contain header descriptions instead of unique values. 
+#need to remove these observations
+df_2018=df_2018[(df_2018.Player!='Player')]
+#now let's explore the data again
+df_2018[df_2018.Player=='Player']
+#counts for each value of Rnd, PIck, Tm, and Position
+for column in tabs:
+    tab = pd.crosstab(index=df_2018[column],  # Make a crosstab
+                              columns="count")      # Name the count column
+    print(tab)
+df_2018.describe()
+#that looks better
 
 
 ####2 COLLECT WIKIPEDIA PAGE VIEWS FOR EACH PLAYER
@@ -146,34 +131,33 @@ import mwviews
 from mwviews.api import PageviewsClient
 
 # Sends a descriptive User-Agent header with every request
-#p = PageviewsClient(user_agent="<ene> Selfie, Cat, and Dog analysis")
+p = PageviewsClient(user_agent="<ene> NFL draft analysis")
 
 #2a retrieve page views for each player
 
 
-#Error occurs as Kaggle and Wikipedia handle some initials inconsistently
+#Error occurs as ProFootballReference and Wikipedia handle some initials inconsistently
 #Manually correcting this issue
 
-name_correction = {'A.J. Cann':'A. J. Cann',
-                   'JJ Nelson':'J. J. Nelson',
-                   'B.J. Dubose':'B. J. Dubose', 
-                   'Rory \'Busta\' Anderson':'Rory Anderson'
+name_correction = {'M.J. Stewart':'M. J. Stewart',
+                   'P.J. Hall':'P. J. Hall',
+                   'R.J. McIntosh':'R. J. McIntosh'
                   }
-recentdraft = recentdraft.replace(name_correction)
+df_2018 = df_2018.replace(name_correction)
 
-#2015 NFL draft took place from April 30 to May 2
+#2018 NFL draft took place from April 26 to May 28
 #Collect more data than needed at beginning. Dates will be pared down after exploratory analysis
 
 #build dataframe format
-wiki_views = pd.DataFrame.from_dict(p.article_views('en.wikipedia', recentdraft.at[0,'Player'], granularity='daily', start='20140101', end='20151231'))
+wiki_views = pd.DataFrame.from_dict(p.article_views('en.wikipedia', df_2018.at[0,'Player'], granularity='daily', start='20170101', end='20181231'))
 #set column name for players
 wiki_views['Player'] = wiki_views.index
 #remove data
 wiki_views = wiki_views[0:0]
 
 #populate table by with wikipedia stats for each player
-for i in recentdraft.index:
-    wiki_views = wiki_views.append(pd.DataFrame.from_dict(p.article_views('en.wikipedia', recentdraft.at[i,'Player'], granularity='daily', start='20140101', end='20151231')))
+for i in df_2018.index:
+    wiki_views = wiki_views.append(pd.DataFrame.from_dict(p.article_views('en.wikipedia', df_2018.at[i,'Player'], granularity='daily', start='20170101', end='20181231')))
 
 wiki_views = pd.melt(wiki_views, id_vars=["Player"],var_name="Date", value_name="Views")
 
