@@ -149,39 +149,70 @@ df_2018 = df_2018.replace(name_correction)
 #Collect more data than needed at beginning. Dates will be pared down after exploratory analysis
 
 #build dataframe format
-wiki_views = pd.DataFrame.from_dict(p.article_views('en.wikipedia', df_2018.at[0,'Player'], granularity='daily', start='20170101', end='20181231'))
-#set column name for players
-wiki_views['Player'] = wiki_views.index
+#wiki_views_t = pd.DataFrame.from_dict(p.article_views('en.wikipedia', df_2018.at[0,'Player'], granularity='daily', start='20170101', end='20181231'))
+wiki_views_c = pd.DataFrame.from_dict(p.article_views('en.wikipedia', 'Jonathan Taylor (American football)', granularity='daily', start='20170101', end='20181231'))
+
 #remove data
-wiki_views = wiki_views[0:0]
+wiki_views_t = wiki_views_c[0:0]
 
 #populate table by with wikipedia stats for each player
 for i in df_2018.index:
-    wiki_views = wiki_views.append(pd.DataFrame.from_dict(p.article_views('en.wikipedia', df_2018.at[i,'Player'], granularity='daily', start='20170101', end='20181231')))
+    wiki_views_t = wiki_views_t.append(pd.DataFrame.from_dict(p.article_views('en.wikipedia', df_2018.at[i,'Player'], granularity='daily', start='20170101', end='20181231')))
 
-wiki_views = pd.melt(wiki_views, id_vars=["Player"],var_name="Date", value_name="Views")
+#set column name for players
+wiki_views_t['Player'] = wiki_views_t.index
+wiki_views_c['Player'] = wiki_views_c.index
+  
+wiki_views_t = pd.melt(wiki_views_t, id_vars=["Player"],var_name="Date", value_name="Views")
+wiki_views_c = pd.melt(wiki_views_c, id_vars=["Player"],var_name="Date", value_name="Views")
 
 #remove underscore that wikipedia enters into player names to ensure we can join tables together later on player name
-wiki_views=wiki_views.replace('_', ' ', regex=True)
+wiki_views_t=wiki_views_t.replace('_', ' ', regex=True)
+wiki_views_c=wiki_views_c.replace('_', ' ', regex=True)
 #fill NAs with 0s for Causal Impact model
-wiki_views=wiki_views.fillna(0)
+wiki_views_t=wiki_views_t.fillna(0)
+wiki_views_c=wiki_views_c.fillna(0)
 
-wiki_views.shape
-wiki_views.head()
-wiki_views.describe()
-wiki_views.
-wiki_views.groupby(['Player','Date'])['Views'].max()
-wiki_views.index
+wiki_views_t.shape
+wiki_views_c.shape
+wiki_views_t.head()
+wiki_views_c.head()
+wiki_views_t.describe()
+wiki_views_c.describe()
 
-#### 3 CONDUCT CAUSAL IMPACT MEASUREMENT TO IDENTIFY SIGNIFICANT LIFT
+draft_round=df_2018[['Player','Rnd']]
+wiki_views_ts = pd.merge(wiki_views_t,draft_round,on='Player',how='left')
+wiki_views_t1 = wiki_views_ts[wiki_views_ts['Rnd']=='1'].groupby('Date')['Views'].mean()
+wiki_views_t2 = wiki_views_ts[wiki_views_ts['Rnd']=='2'].groupby('Date')['Views'].mean()
+wiki_views_t3 = wiki_views_ts[wiki_views_ts['Rnd']=='3'].groupby('Date')['Views'].mean()
+wiki_views_t4 = wiki_views_ts[wiki_views_ts['Rnd']=='4'].groupby('Date')['Views'].mean()
+wiki_views_t5 = wiki_views_ts[wiki_views_ts['Rnd']=='5'].groupby('Date')['Views'].mean()
+wiki_views_t6 = wiki_views_ts[wiki_views_ts['Rnd']=='6'].groupby('Date')['Views'].mean()
+wiki_views_t7 = wiki_views_ts[wiki_views_ts['Rnd']=='7'].groupby('Date')['Views'].mean()
+
+
+#### 3 PREPARE DATA FOR CAUSAL IMPACT MODELING
+
+planets.groupby(['method',decade])['number'].sum().unstack().fillna(0)
+#we now know when and how planets have been discovered over the past several decades
+#join to draft round
+
+#aggregate views by draft round
+
+#calculate control
+
+
+
+#### 4 CONDUCT CAUSAL IMPACT MEASUREMENT TO IDENTIFY SIGNIFICANT LIFT
 
 
 from causalimpact import CausalImpact
 from statsmodels.tsa.arima_process import arma_generate_sample
 import matplotlib
 import seaborn as sns
-
-wiki_views.plot(wiki_views['Views'])
+wiki_views=wiki_views.set_index('Player')
+print(wiki_views['Views'])
+wiki_views.plot(wiki_views['Date'])
 wiki_views.plot()
 plt.plot(Dates, Highs)
 
@@ -196,7 +227,8 @@ wiki_views.iloc[545, ]
 #based on exploration of the data, we will use a post-period of y
 post_period = [71,99]
 
-#### 4 JOIN KAGGLE AND CAUSAL IMPACT DATASETS
+
+#### 5 JOIN PRO FOOTBALL REFERENCE AND CAUSAL IMPACT DATASETS
 
 
 #probably don't have to do this until after the causal impact
