@@ -145,7 +145,7 @@ name_correction = {'M.J. Stewart':'M. J. Stewart',
                   }
 df_2018 = df_2018.replace(name_correction)
 
-#2018 NFL draft took place from April 26 to May 28
+#2018 NFL draft took place from April 26 to April 28
 #Collect more data than needed at beginning. Dates will be pared down after exploratory analysis
 
 #build dataframe format
@@ -182,14 +182,25 @@ wiki_views_c.describe()
 
 draft_round=df_2018[['Player','Rnd']]
 wiki_views_ts = pd.merge(wiki_views_t,draft_round,on='Player',how='left')
-wiki_views_t1 = wiki_views_ts[wiki_views_ts['Rnd']=='1'].groupby('Date')['Views'].mean()
-wiki_views_t2 = wiki_views_ts[wiki_views_ts['Rnd']=='2'].groupby('Date')['Views'].mean()
-wiki_views_t3 = wiki_views_ts[wiki_views_ts['Rnd']=='3'].groupby('Date')['Views'].mean()
-wiki_views_t4 = wiki_views_ts[wiki_views_ts['Rnd']=='4'].groupby('Date')['Views'].mean()
-wiki_views_t5 = wiki_views_ts[wiki_views_ts['Rnd']=='5'].groupby('Date')['Views'].mean()
-wiki_views_t6 = wiki_views_ts[wiki_views_ts['Rnd']=='6'].groupby('Date')['Views'].mean()
-wiki_views_t7 = wiki_views_ts[wiki_views_ts['Rnd']=='7'].groupby('Date')['Views'].mean()
+wiki_views_t1 = wiki_views_ts[wiki_views_ts['Rnd']=='1'].groupby('Date',as_index=False)['Views'].mean()
+wiki_views_t2 = wiki_views_ts[wiki_views_ts['Rnd']=='2'].groupby('Date',as_index=False)['Views'].mean()
+wiki_views_t3 = wiki_views_ts[wiki_views_ts['Rnd']=='3'].groupby('Date',as_index=False)['Views'].mean()
+wiki_views_t4 = wiki_views_ts[wiki_views_ts['Rnd']=='4'].groupby('Date',as_index=False)['Views'].mean()
+wiki_views_t5 = wiki_views_ts[wiki_views_ts['Rnd']=='5'].groupby('Date',as_index=False)['Views'].mean()
+wiki_views_t6 = wiki_views_ts[wiki_views_ts['Rnd']=='6'].groupby('Date',as_index=False)['Views'].mean()
+wiki_views_t7 = wiki_views_ts[wiki_views_ts['Rnd']=='7'].groupby('Date',as_index=False)['Views'].mean()
 
+wiki_views_c=wiki_views_c[['Date','Views']]
+
+inputs1 = pd.merge(wiki_views_t1,wiki_views_c,on='Date',how='left')
+inputs2 = pd.merge(wiki_views_t2,wiki_views_c,on='Date',how='left')
+inputs3 = pd.merge(wiki_views_t3,wiki_views_c,on='Date',how='left')
+inputs4 = pd.merge(wiki_views_t4,wiki_views_c,on='Date',how='left')
+inputs5 = pd.merge(wiki_views_t5,wiki_views_c,on='Date',how='left')
+inputs6 = pd.merge(wiki_views_t6,wiki_views_c,on='Date',how='left')
+inputs7 = pd.merge(wiki_views_t7,wiki_views_c,on='Date',how='left')
+
+inputs1=inputs1[['Views_x','Views_y']]
 
 #### 3 PREPARE DATA FOR CAUSAL IMPACT MODELING
 
@@ -210,23 +221,35 @@ from causalimpact import CausalImpact
 from statsmodels.tsa.arima_process import arma_generate_sample
 import matplotlib
 import seaborn as sns
-wiki_views=wiki_views.set_index('Player')
-print(wiki_views['Views'])
-wiki_views.plot(wiki_views['Date'])
-wiki_views.plot()
-plt.plot(Dates, Highs)
+%matplotlib inline
+matplotlib.rcParams['figure.figsize'] = (15, 6)
 
+#draft is april 26 - april 28
+pre_period = [pd.to_datetime(date) for date in ["2018-02-05", "2018-04-19"]]
+post_period = [pd.to_datetime(date) for date in ["2018-04-26", "2018-05-05"]]
+impact = CausalImpact(inputs1, pre_period, post_period)
+impact.run()
+impact <- CausalImpact(inputs1, pre.period, post.period)
+plot(impact)
 
 #based on exploration of the data, we will use a pre-period of x
-pre_period = [0,69]
-wiki_views[400]
-wiki_views.loc[ ['c' , 'b'] ,['Age', 'Name'] ]
 
-wiki_views.iloc[484, ]
-wiki_views.iloc[545, ]
 #based on exploration of the data, we will use a post-period of y
-post_period = [71,99]
 
+#error message "upper y"
+pd.__version__
+statsmodels.__version__
+import statsmodels.api as sm 
+sm.version.version 
+CausalImpact.
+df = pd.DataFrame(
+    {'y': [150, 200, 225, 150, 175],
+     'x1': [150, 249, 150, 125, 325],
+     'x2': [275, 125, 249, 275, 250]
+    }
+)
+ci = CausalImpact(df, [0,2], [3,4])
+ci.run()
 
 #### 5 JOIN PRO FOOTBALL REFERENCE AND CAUSAL IMPACT DATASETS
 
