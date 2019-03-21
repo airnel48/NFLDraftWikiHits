@@ -5,16 +5,24 @@ Created on Sun Mar 10 10:23:21 2019
 @author: Eric
 """
 
-####1 SCRAPE DATA FROM PRO FOOTBALL REFERENCE.COM
-#assistance from: http://savvastjortjoglou.com/nfl-draft.html#Web-Scraping
-
-%matplotlib inline
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 import numpy as np
 from urllib.request import urlopen
 from bs4 import BeautifulSoup
+import mwviews
+from mwviews.api import PageviewsClient
+from causalimpact import CausalImpact
+from statsmodels.tsa.arima_process import arma_generate_sample
+import matplotlib
+%matplotlib inline
+matplotlib.rcParams['figure.figsize'] = (15, 6)
+
+
+####1 SCRAPE DATA FROM PRO FOOTBALL REFERENCE.COM
+#scraping assistance from: http://savvastjortjoglou.com/nfl-draft.html#Web-Scraping
+
 
 # set the URL
 draft_2018 = "https://www.pro-football-reference.com/years/2018/draft.htm"
@@ -127,9 +135,6 @@ df_2018.describe()
 ####2 COLLECT WIKIPEDIA PAGE VIEWS FOR EACH PLAYER
 
 
-import mwviews
-from mwviews.api import PageviewsClient
-
 # Sends a descriptive User-Agent header with every request
 p = PageviewsClient(user_agent="<ene> NFL draft analysis")
 
@@ -150,6 +155,9 @@ df_2018 = df_2018.replace(name_correction)
 
 #build dataframe format
 #wiki_views_t = pd.DataFrame.from_dict(p.article_views('en.wikipedia', df_2018.at[0,'Player'], granularity='daily', start='20170101', end='20181231'))
+#Use Jonathan Taylor as a control. 
+#He is a top performing freshman from Wisconsin who is not eligible for the draft until 2019
+#Considered using a combination of other college players as control, but most do not have a Wiki page
 wiki_views_c = pd.DataFrame.from_dict(p.article_views('en.wikipedia', 'Jonathan Taylor (American football)', granularity='daily', start='20170101', end='20181231'))
 
 #remove data
@@ -180,6 +188,9 @@ wiki_views_c.head()
 wiki_views_t.describe()
 wiki_views_c.describe()
 
+
+#### 3 PREPARE DATA FOR CAUSAL IMPACT MODELING
+
 draft_round=df_2018[['Player','Rnd']]
 wiki_views_ts = pd.merge(wiki_views_t,draft_round,on='Player',how='left')
 wiki_views_t1 = wiki_views_ts[wiki_views_ts['Rnd']=='1'].groupby('Date',as_index=False)['Views'].mean()
@@ -200,29 +211,9 @@ inputs5 = pd.merge(wiki_views_t5,wiki_views_c,on='Date',how='left')
 inputs6 = pd.merge(wiki_views_t6,wiki_views_c,on='Date',how='left')
 inputs7 = pd.merge(wiki_views_t7,wiki_views_c,on='Date',how='left')
 
-inputs1=inputs1[['Views_x','Views_y']]
-
-#### 3 PREPARE DATA FOR CAUSAL IMPACT MODELING
-
-planets.groupby(['method',decade])['number'].sum().unstack().fillna(0)
-#we now know when and how planets have been discovered over the past several decades
-#join to draft round
-
-#aggregate views by draft round
-
-#calculate control
-
-
 
 #### 4 CONDUCT CAUSAL IMPACT MEASUREMENT TO IDENTIFY SIGNIFICANT LIFT
 
-
-from causalimpact import CausalImpact
-from statsmodels.tsa.arima_process import arma_generate_sample
-import matplotlib
-import seaborn as sns
-%matplotlib inline
-matplotlib.rcParams['figure.figsize'] = (15, 6)
 
 #draft is april 26 - april 28
 pre_period = [pd.to_datetime(date) for date in ["2018-02-05", "2018-04-19"]]
@@ -231,10 +222,8 @@ impact = CausalImpact(inputs1, pre_period, post_period)
 impact.run()
 impact <- CausalImpact(inputs1, pre.period, post.period)
 plot(impact)
+inputs1['Date']
 
-#based on exploration of the data, we will use a pre-period of x
-
-#based on exploration of the data, we will use a post-period of y
 
 #error message "upper y"
 pd.__version__
@@ -251,9 +240,78 @@ df = pd.DataFrame(
 ci = CausalImpact(df, [0,2], [3,4])
 ci.run()
 
-#### 5 JOIN PRO FOOTBALL REFERENCE AND CAUSAL IMPACT DATASETS
+
+#### 5 CONDUCT ANCOVA UNTIL RESOLUTION IS FOUND FOR THE CAUSAL IMPACT PACKAGE
+from statsmodels.formula.api import ols
+from statsmodels.stats.anova import anova_lm
+from statsmodels.graphics.factorplots import interaction_plot
+import matplotlib.pyplot as plt
+from scipy import stats
+
+#wiki_views_ts = pd.merge(wiki_views_t,draft_round,on='Player',how='left')
+
+#wiki_views_ts['Date'] = wiki_views_ts.to_datetime(wiki_views_ts['Date'])  
+
+pre = (wiki_views_ts['Date'] >= '2018-02-05') & (wiki_views_ts['Date'] <= '2018-04-19')
+post = (wiki_views_ts['Date'] >= '2018-04-26') & (wiki_views_ts['Date'] <= '2018-05-05')
+
+df = df.loc[mask]
+
+predata=wiki_views_ts[['Player','Views','Rnd']].loc[pre].rename(index=str,columns={"Views":"Pre_views"})
+predata=predata.groupby(['Player','Rnd'],as_index=False)['Pre_views'].mean()
+postdata=wiki_views_ts[['Player','Views','Rnd']].loc[post].rename(index=str,columns={"Views":"Post_views"})
+postdata=postdata.groupby(['Player'],as_index=False)['Post_views'].mean()
+totdata=pd.merge(predata,postdata,on='Player',how='left')
+totdata=totdata.drop(columns='Player')
+
+matplotlib.pyplot.scatter(totdata['Pre_views'], totdata['Post_views'])
+matplotlib.pyplot.scatter(totdata[totdata.Rnd=='1']['Pre_views'], totdata[totdata.Rnd=='1']['Post_views'])
+matplotlib.pyplot.scatter(totdata[totdata.Rnd=='2']['Pre_views'], totdata[totdata.Rnd=='2']['Post_views'])
+matplotlib.pyplot.scatter(totdata[totdata.Rnd=='3']['Pre_views'], totdata[totdata.Rnd=='3']['Post_views'])
+matplotlib.pyplot.scatter(totdata[totdata.Rnd=='4']['Pre_views'], totdata[totdata.Rnd=='4']['Post_views'])
+matplotlib.pyplot.scatter(totdata[totdata.Rnd=='5']['Pre_views'], totdata[totdata.Rnd=='5']['Post_views'])
+matplotlib.pyplot.scatter(totdata[totdata.Rnd=='6']['Pre_views'], totdata[totdata.Rnd=='6']['Post_views'])
+matplotlib.pyplot.scatter(totdata[totdata.Rnd=='7']['Pre_views'], totdata[totdata.Rnd=='7']['Post_views'])
+
+formula = 'Post_views ~ C(Pre_views) + C(Rnd) '
+lm = ols(formula, totdata).fit()
+print(lm.summary())
+
+results = lm(Post_views ~ Pre_views + Rnd)
+?results()
+anova(results)
+
+https://www.proanalyticsexpert.com/ancova-vs-anova/
 
 
-#probably don't have to do this until after the causal impact
-#draftdata=pd.merge(recentdraft,wiki_views,on='Player')
-#draftdata.head()
+
+
+
+pre_period = [pd.to_datetime(date) for date in ["2018-02-05", "2018-04-19"]]
+
+wiki_views_t1 = wiki_views_ts[wiki_views_ts['Rnd']=='1'].groupby('Date',as_index=False)['Views'].mean()
+
+pre1=inputs1[['Views_x']].iloc[400:474,:]
+post1=inputs1[['Views_x']].iloc[480:490,:]
+test1=pd.merge(pre1,post1,on='Player',how='left')
+
+inputs1=inputs1[['Date','Views_x']]
+inputs1['Treatment']='t1'
+inputs2=inputs2[['Date','Views_x']]
+inputs2['Treatment']='t2'
+test12=inputs1.append(inputs2)
+
+matplotlib.pyplot.scatter(inputs1[['Views_x']].iloc[400:474,:], inputs2[['Views_x']].iloc[400:474,:], )
+matplotlib.pyplot.scatter(inputs1[['Views_x']].iloc[400:474,:], inputs2[['Views_x']].iloc[400:474,:], )
+
+results = lm(Sale ~ Presale + Treatment)
+
+anova(results)
+
+inputs1[] 
+#average of wiki views in pre-period between 2018-02-05 and 2018-04-19
+pre1=inputs1[['Views_x']].iloc[400:474,:].mean(axis=0)
+
+#average of wiki views in pre-period between 2018-04-26 and 2018-05-05
+post1=inputs1[['Views_x']].iloc[480:490,:].mean(axis=0)
+
