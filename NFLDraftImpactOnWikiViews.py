@@ -273,15 +273,19 @@ matplotlib.pyplot.scatter(totdata[totdata.Rnd=='5']['Pre_views'], totdata[totdat
 matplotlib.pyplot.scatter(totdata[totdata.Rnd=='6']['Pre_views'], totdata[totdata.Rnd=='6']['Post_views'])
 matplotlib.pyplot.scatter(totdata[totdata.Rnd=='7']['Pre_views'], totdata[totdata.Rnd=='7']['Post_views'])
 
-formula = 'Post_views ~ C(Pre_views) + C(Rnd) '
+formula = 'Post_views ~ Pre_views + Rnd'
 lm = ols(formula, totdata).fit()
 print(lm.summary())
 
-results = lm(Post_views ~ Pre_views + Rnd)
-?results()
-anova(results)
+#RESULTS
+#Post_views = 3,024 + 7.2*Pre_views + Rnd
+#Rnd2-7 have values of -2320 to -3000 
+#Conclusion: all drafted players see a 7x increase in Wiki hits the week after the draft
+#First round draft picks see a major additional boost of ~3,000 per day for the week after the draft
+#There is no clear difference in results for draft picks between rounds 2 and 7 outside of the 7x of pre wiki hits
 
-https://www.proanalyticsexpert.com/ancova-vs-anova/
+
+
 
 
 
