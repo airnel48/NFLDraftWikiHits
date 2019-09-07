@@ -11,5 +11,5 @@
 
 ## Results
 #### - all drafted players experience a 7x increase in Wiki hits in the week following the draft
-#### - first round draft picks see an additional boost of 3,000 views per day for the week after the draft
-#### - there is no clear difference in results for draft picks between rounds 2 and 7 outside of the 7x boost
+#### - first round draft picks see an additional boost of 2.2K to 2.6K daily views in the week following the draft
+#### - there is a slight decline in the boost to Wikipedia page visits as the draft round increases, but majority of the dropoff occurs after the first round
